@@ -1,0 +1,47 @@
+Please note that entire project of CEO Northwind is generated using Google Gemini. I asked Gemini to generate a SQL Project assuming a CEO of Northwind Company.
+
+I also used the Gemini to write SQL Query codes, results of which have been check on https://dofactory.com/sql/editor/syntax-select using the SQL Compiler.
+
+Here are the complete Questionaire created by the Gemini:
+
+That's a great request! As the CEO of Northwind, I'd focus on core business areas to drive strategic data-driven decisions. Here is the questionnaire for you, my Data Analyst:
+
+## Northwind CEO Data Performance Review Questionnaire
+
+### I. Sales and Revenue Performance
+
+1.  What was our **total revenue** for the last quarter and the last fiscal year?
+2.  What is the **Month-over-Month (MoM)** and **Year-over-Year (YoY) revenue growth rate**?
+3.  Which **Top 10 Products** contributed the most to our total revenue in the last six months?
+4.  Which **Bottom 5 Products** generated the least revenue and should be reviewed for discontinuation or re-marketing?
+5.  What is our **Average Order Value (AOV)**, and how has it trended over the last three quarters?
+6.  Which **geographic regions (countries/cities)** are our top performers in terms of sales volume and revenue?
+7.  What is the **current customer retention rate** versus the previous year?
+
+***
+
+### II. Customer and Market Analysis
+
+8.  Who are our **Top 10 Customers** by total purchase value and order frequency?
+9.  What is the **customer acquisition cost (CAC)** for the last quarter? (If we have promotional spending data)
+10. What is the **Lifetime Value (L LTV)** of a typical customer, and how does it vary by customer segment?
+11. Are there any emerging **trends in customer purchasing behavior** (e.g., preference for specific categories or larger/smaller order sizes)?
+12. How effective are our **discount and promotion campaigns**? Provide a breakdown of sales influenced by promotions versus full-price sales.
+
+***
+
+### III. Operational and Inventory Efficiency
+
+13. What is our **current inventory turnover rate** for our major product categories?
+14. Which products are at risk of **stock-out (too low inventory)** or **overstock (too high inventory)** based on recent demand?
+15. What is the **average time from order placement to shipment**, and what is the variance among our different **shippers**?
+16. What is the **total value and count of all returned or cancelled orders**, and what are the primary reasons for these actions?
+17. Which **suppliers** are associated with the highest and lowest quantity of shipped products?
+
+***
+
+### IV. Employee and Financial Metrics
+
+18. Which **employees (sales representatives)** generated the **highest total sales revenue** in the last two quarters?
+19. What is the **average gross profit margin** on our products, and how does it differ across **product categories**?
+20. What is the **ratio of operational expenses to total revenue**? (If we have basic expense data)
