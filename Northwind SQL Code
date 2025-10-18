@@ -1,0 +1,208 @@
+*/ CEO Data Performance Review: Sales and Revenue Performance
+
+I. Sales and Revenue Performance
+Question-1: What was our total revenue for the last quarter and the last fiscal year? */
+
+SELECT
+    -- Total Revenue for the Last Fiscal Year (Previous Calendar Year)
+    SUM(
+        CASE
+            -- Filter: OrderDate >= Start of Last Calendar Year
+            WHEN O.OrderDate >= DATEADD(yy, DATEDIFF(yy, 0, GETDATE()) - 1, 0)
+            -- Filter: AND OrderDate < Start of Current Calendar Year (i.e., End of Last Year)
+            AND O.OrderDate < DATEADD(yy, DATEDIFF(yy, 0, GETDATE()), 0)
+            THEN O.TotalAmount
+            ELSE 0
+        END
+    ) AS LastFiscalYearRevenue,
+
+    -- Total Revenue for the Last Quarter (The most recently COMPLETED quarter)
+    SUM(
+        CASE
+            -- Filter: OrderDate >= Start of Last Completed Quarter
+            WHEN O.OrderDate >= DATEADD(qq, DATEDIFF(qq, 0, GETDATE()) - 1, 0)
+            -- Filter: AND OrderDate < Start of Current Quarter (i.e., End of Last Quarter)
+            AND O.OrderDate < DATEADD(qq, DATEDIFF(qq, 0, GETDATE()), 0)
+            THEN O.TotalAmount
+            ELSE 0
+        END
+    ) AS LastQuarterRevenue
+FROM
+    [ORDER] AS O;
+
+/* II. Growth and Product Performance
+
+Q-2:  What is the Month-over-Month (MoM) and Year-over-Year (YoY) revenue growth rate? */
+
+WITH MonthlyRevenue AS (
+    -- 1. Calculate monthly revenue for all months
+    SELECT
+        DATEADD(month, DATEDIFF(month, 0, OrderDate), 0) AS OrderMonth,
+        SUM(TotalAmount) AS CurrentMonthRevenue
+    FROM
+        [ORDER]
+    GROUP BY
+        DATEADD(month, DATEDIFF(month, 0, OrderDate), 0)
+),
+GrowthData AS (
+    -- 2. Calculate Previous Month and Previous Year's Month Revenue using LAG
+    SELECT
+        OrderMonth,
+        CurrentMonthRevenue,
+        LAG(CurrentMonthRevenue, 1) OVER (ORDER BY OrderMonth) AS PreviousMonthRevenue,
+        LAG(CurrentMonthRevenue, 12) OVER (ORDER BY OrderMonth) AS PreviousYearMonthRevenue
+    FROM
+        MonthlyRevenue
+)
+-- 3. Calculate MoM and YoY Growth Rate for the last completed month
+SELECT TOP 1
+    OrderMonth AS TargetMonth,
+    FORMAT(
+        (CurrentMonthRevenue - PreviousMonthRevenue) * 100.0 / PreviousMonthRevenue,
+        'N2'
+    ) + '%' AS MoMGrowthRate,
+    FORMAT(
+        (CurrentMonthRevenue - PreviousYearMonthRevenue) * 100.0 / PreviousYearMonthRevenue,
+        'N2'
+    ) + '%' AS YoYGrowthRate
+FROM
+    GrowthData
+WHERE
+    -- Filter to exclude the current (partial) month
+    OrderMonth < DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0)
+ORDER BY
+    OrderMonth DESC;
+
+
+-- Q-3:  Which Top 10 Products contributed the most to our total revenue in the last six months?
+
+SELECT TOP 10
+    P.ProductName,
+    SUM(OI.Quantity * OI.UnitPrice) AS TotalProductRevenue
+FROM
+    ORDERITEM AS OI
+INNER JOIN
+    [ORDER] AS O ON OI.OrderId = O.Id
+INNER JOIN
+    PRODUCT AS P ON OI.ProductId = P.Id
+WHERE
+    -- Filter for the last 6 months
+    O.OrderDate >= DATEADD(month, -6, GETDATE())
+GROUP BY
+    P.ProductName
+ORDER BY
+    TotalProductRevenue DESC;
+
+
+-- Q-4: Which Bottom 5 Products generated the least revenue and should be reviewed for discontinuation or re-marketing?
+
+SELECT TOP 5
+    P.ProductName,
+    SUM(OI.Quantity * OI.UnitPrice) AS TotalProductRevenue,
+    P.IsDiscontinued
+FROM
+    ORDERITEM AS OI
+INNER JOIN
+    PRODUCT AS P ON OI.ProductId = P.Id
+GROUP BY
+    P.ProductName, P.IsDiscontinued
+ORDER BY
+    TotalProductRevenue ASC;
+
+
+/* III. Order and Customer Metrics
+
+Q-5: What is our Average Order Value (AOV), and how has it trended over the last three quarters? */
+
+WITH QuarterlyAOV AS (
+    SELECT
+        -- Calculate the start of the quarter
+        DATEADD(qq, DATEDIFF(qq, 0, OrderDate), 0) AS OrderQuarter,
+        AVG(TotalAmount) AS AverageOrderValue
+    FROM
+        [ORDER]
+    GROUP BY
+        DATEADD(qq, DATEDIFF(qq, 0, OrderDate), 0)
+)
+SELECT
+    OrderQuarter,
+    AverageOrderValue
+FROM
+    QuarterlyAOV
+WHERE
+    -- Filter for the last 3 completed quarters (assuming current date is in a quarter)
+    OrderQuarter >= DATEADD(qq, DATEDIFF(qq, 0, GETDATE()) - 3, 0)
+    AND OrderQuarter < DATEADD(qq, DATEDIFF(qq, 0, GETDATE()), 0) -- exclude current partial quarter
+ORDER BY
+    OrderQuarter DESC;
+
+
+-- Q-6: Which geographic regions (countries/cities) are our top performers in terms of sales volume and revenue?
+
+SELECT TOP 10
+    C.Country,
+    C.City,
+    COUNT(O.Id) AS TotalOrders,
+    SUM(O.TotalAmount) AS TotalRevenue
+FROM
+    [ORDER] AS O
+INNER JOIN
+    CUSTOMER AS C ON O.CustomerId = C.Id
+GROUP BY
+    C.Country,
+    C.City
+ORDER BY
+    TotalRevenue DESC,
+    TotalOrders DESC;
+
+
+-- Q-7: What is the current customer retention rate versus the previous year?
+
+WITH CurrentAndPreviousYears AS (
+    -- Define the current and previous year values once
+    SELECT
+        YEAR(GETDATE()) AS CurrentYear,
+        YEAR(GETDATE()) - 1 AS PreviousYear
+),
+PreviousYearCustomers AS (
+    -- 1. Identify all unique Customer IDs who purchased in the Previous Year
+    SELECT DISTINCT
+        O.CustomerId
+    FROM
+        [ORDER] AS O
+    INNER JOIN
+        CurrentAndPreviousYears AS Y ON YEAR(O.OrderDate) = Y.PreviousYear
+),
+TotalPreviousYearCustomers AS (
+    -- 2. Calculate the total count of unique customers from the Previous Year
+    SELECT
+        COUNT(CustomerId) AS PreviousYearTotal
+    FROM
+        PreviousYearCustomers
+),
+RetainedCustomersCount AS (
+    -- 3. Calculate the count of Previous Year's customers who also purchased in the Current Year
+    SELECT
+        COUNT(DISTINCT O.CustomerId) AS RetainedCount
+    FROM
+        [ORDER] AS O
+    INNER JOIN
+        PreviousYearCustomers AS PYC ON O.CustomerId = PYC.CustomerId
+    INNER JOIN
+        CurrentAndPreviousYears AS Y ON YEAR(O.OrderDate) = Y.CurrentYear
+)
+-- 4. Final calculation and presentation
+SELECT
+    Y.PreviousYear AS RetentionBasedYear,
+    Y.CurrentYear AS ComparisonYear,
+    TPYC.PreviousYearTotal,
+    RCC.RetainedCount,
+    -- Retention Rate: (Retained Customers / Previous Year Total Customers) * 100
+    FORMAT(
+        (RCC.RetainedCount * 100.0 / TPYC.PreviousYearTotal),
+        'N2'
+    ) + '%' AS CustomerRetentionRate
+FROM
+    RetainedCustomersCount AS RCC,
+    TotalPreviousYearCustomers AS TPYC,
+    CurrentAndPreviousYears AS Y;
